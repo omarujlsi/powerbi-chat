@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>AI Chat v Power BI</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 10px; background: #f3f2f1; }
+        #chatbox { height: 300px; overflow-y: auto; background: white; padding: 10px; border: 1px solid #ccc; margin-bottom: 10px; border-radius: 5px; }
+        #vstup { width: 70%; padding: 8px; border: 1px solid #ccc; border-radius: 4px; }
+        #odeslat { width: 25%; padding: 8px; background: #0078d4; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .zprava { margin-bottom: 10px; padding: 8px; border-radius: 5px; }
+        .ja { background: #e1dfdd; text-align: right; }
+        .ai { background: #dff6dd; text-align: left; }
+    </style>
+</head>
+<body>
+
+    <div id="chatbox"></div>
+    <input type="text" id="vstup" placeholder="Zeptejte se AI..." onkeydown="if(event.key === 'Enter') odeslatDotaz()">
+    <button id="odeslat" onclick="odeslatDotaz()">Odeslat</button>
+
+    <script>
+        // ZDE VLOŽTE SVŮJ NOVÝ API KLÍČ
+        const API_KEY = 'AIzaSyDV6uCZfJ5iiynJ_txccp7kpB55MobvChE';
+        
+        async function odeslatDotaz() {
+            const vstup = document.getElementById('vstup');
+            const chatbox = document.getElementById('chatbox');
+            const text = vstup.value;
+            if(!text) return;
+
+            // Zobrazí moji otázku
+            chatbox.innerHTML += `<div class="zprava ja">${text}</div>`;
+            vstup.value = '';
+            chatbox.scrollTop = chatbox.scrollHeight;
+
+            // Zavolá Gemini API
+            const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${API_KEY}`;
+            const data = { contents: [{ parts: [{ text: text }] }] };
+
+            try {
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(data)
+                });
+                const result = await response.json();
+                const odpoved = result.candidates[0].content.parts[0].text;
+                
+                // Zobrazí odpověď AI
+                chatbox.innerHTML += `<div class="zprava ai">${odpoved}</div>`;
+                chatbox.scrollTop = chatbox.scrollHeight;
+            } catch (error) {
+                chatbox.innerHTML += `<div class="zprava ai" style="color:red;">Chyba připojení.</div>`;
+            }
+        }
+    </script>
+</body>
+</html>
