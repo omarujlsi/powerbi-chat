@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Asistent – Claude AI</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: 'Segoe UI', sans-serif;
+    background: #1e1e2e;
+    color: #e0e0e0;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  /* ── HLAVIČKA ── */
+  .header {
+    background: #1a4a8a;
+    padding: 10px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .header-icon {
+    width: 30px; height: 30px;
+    background: rgba(255,255,255,0.15);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px;
+  }
+  .header h1 { color: #fff; font-size: 14px; font-weight: 600; }
+  .header .sub { color: rgba(255,255,255,0.6); font-size: 11px; margin-left: auto; }
+
+  /* ── KONTEXT DAT ── */
+  .context-bar {
+    background: #252538;
+    border-bottom: 1px solid #333355;
+    padding: 8px 14px;
+    flex-shrink: 0;
+  }
+  .ctx-toggle {
+    background: none; border: none; cursor: pointer;
+    color: #aaa; font-size: 12px; display: flex;
+    align-items: center; gap: 6px; width: 100%;
+    font-family: 'Segoe UI', sans-serif;
+  }
+  .ctx-toggle:hover { color: #ccc; }
+  .ctx-toggle .arrow { margin-left: auto; transition: transform 0.2s; }
+  .ctx-toggle.open .arrow { transform: rotate(180deg); }
+  .ctx-area { display: none; margin-top: 8px; }
+  .ctx-area textarea {
+    width: 100%; height: 72px; resize: none;
+    background: #1a1a2e; color: #ddd;
+    border: 1px solid #333355; border-radius: 6px;
+    padding: 8px 10px; font-size: 12px;
+    font-family: 'Segoe UI', sans-serif;
+  }
+  .ctx-area textarea:focus { outline: none; border-color: #4a8aff; }
+  .ctx-hint { font-size: 11px; color: #666; margin-top: 4px; }
+
+  /* ── ZPRÁVY ── */
+  .messages {
+    flex: 1; overflow-y: auto;
+    padding: 14px; display: flex;
+    flex-direction: column; gap: 12px;
+  }
+  .messages::-webkit-scrollbar { width: 4px; }
+  .messages::-webkit-scrollbar-track { background: transparent; }
+  .messages::-webkit-scrollbar-thumb { background: #333; border-radius: 2px; }
+
+  .msg { display: flex; gap: 8px; align-items: flex-start; }
+  .msg.user { flex-direction: row-reverse; }
+
+  .avatar {
+    width: 28px; height: 28px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 600; flex-shrink: 0;
+  }
+  .avatar.ai { background: #1a4a8a; color: #fff; }
+  .avatar.user { background: #333355; color: #aaa; }
+
+  .bubble {
+    max-width: 82%; padding: 10px 13px;
+    border-radius: 12px; font-size: 13px; line-height: 1.6;
+    white-space: pre-wrap; word-break: break-word;
+  }
+  .bubble.ai {
+    background: #252538; color: #e0e0e0;
+    border: 1px solid #333355;
+    border-radius: 2px 12px 12px 12px;
+  }
+  .bubble.user {
+    background: #1a4a8a; color: #fff;
+    border-radius: 12px 2px 12px 12px;
+  }
+  .bubble.error { background: #3a1a1a; border-color: #662222; color: #ffaaaa; }
+
+  /* Animace psaní */
+  .dots { display: inline-flex; gap: 4px; align-items: center; height: 18px; }
+  .dots span {
+    width: 6px; height: 6px; background: #666;
+    border-radius: 50%; animation: bounce 1.2s infinite;
+  }
+  .dots span:nth-child(2) { animation-delay: 0.2s; }
+  .dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes bounce {
+    0%,60%,100%{opacity:0.3;transform:translateY(0)}
+    30%{opacity:1;transform:translateY(-4px)}
+  }
+
+  /* ── PŘÍKLADY DOTAZŮ ── */
+  .examples {
+    padding: 0 14px 8px;
+    display: flex; flex-wrap: wrap; gap: 6px;
+    flex-shrink: 0;
+  }
+  .chip {
+    font-size: 11px; padding: 5px 11px;
+    border-radius: 20px; border: 1px solid #333355;
+    cursor: pointer; background: #252538; color: #999;
+    transition: all 0.15s;
+  }
+  .chip:hover { background: #2e2e48; color: #ccc; }
+
+  /* ── VSTUP ── */
+  .input-row {
+    padding: 10px 12px; border-top: 1px solid #333355;
+    display: flex; gap: 8px; align-items: flex-end;
+    background: #1e1e2e; flex-shrink: 0;
+  }
+  .input-row textarea {
+    flex: 1; resize: none; height: 38px; max-height: 120px;
+    font-size: 13px; border-radius: 8px; padding: 9px 12px;
+    background: #252538; border: 1px solid #333355;
+    color: #e0e0e0; font-family: 'Segoe UI', sans-serif;
+    line-height: 1.4; overflow-y: hidden;
+    transition: border-color 0.15s;
+  }
+  .input-row textarea:focus { outline: none; border-color: #4a8aff; }
+  .input-row textarea::placeholder { color: #555; }
+
+  .send-btn {
+    width: 38px; height: 38px; border-radius: 8px;
+    background: #1a4a8a; border: none; color: #fff;
+    cursor: pointer; display: flex; align-items: center;
+    justify-content: center; font-size: 16px; flex-shrink: 0;
+    transition: background 0.15s;
+  }
+  .send-btn:hover:not(:disabled) { background: #2255a0; }
+  .send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ── PATIČKA ── */
+  .footer {
+    padding: 4px 14px 6px;
+    font-size: 10px; color: #444;
+    text-align: center; flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══ ZDE VLOŽ SVŮJ API KLÍČ ═══════════════════════════════════════ -->
+<script>
+  const API_KEY = "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";
+  // Příklad: const API_KEY = "sk-ant-api03-xxxxxxxxxxxxx";
+</script>
+<!-- ══════════════════════════════════════════════════════════════════ -->
+
+<!-- Hlavička -->
+<div class="header">
+  <div class="header-icon">🤖</div>
+  <h1>Data Asistent</h1>
+  <span class="sub">Powered by Claude AI</span>
+</div>
+
+<!-- Kontext reportu -->
+<div class="context-bar">
+  <button class="ctx-toggle" id="ctxToggle" onclick="toggleCtx()">
+    📊 Kontext tvého reportu (klikni pro nastavení)
+    <span class="arrow">▼</span>
+  </button>
+  <div class="ctx-area" id="ctxArea">
+    <textarea id="ctxInput"
+      placeholder="Popiš svůj report, např:&#10;Report sleduje prodeje za rok 2024. Sloupce: Datum, Produkt, Region, Tržby (Kč), Marže (%). Data jsou za CZ trh, reportuje se měsíčně. Cílová marže je 30%."></textarea>
+    <div class="ctx-hint">💡 Čím lepší popis, tím přesnější odpovědi asistenta.</div>
+  </div>
+</div>
+
+<!-- Zprávy -->
+<div class="messages" id="messages">
+  <div class="msg">
+    <div class="avatar ai">AI</div>
+    <div class="bubble ai">👋 Dobrý den! Jsem váš datový asistent napájený Claudem.
+
+Nastavte prosím kontext vašeho reportu (tlačítko výše) a pak se mě zeptejte na cokoliv — trendy, anomálie, DAX výpočty nebo interpretaci čísel.</div>
+  </div>
+</div>
+
+<!-- Příklady dotazů -->
+<div class="examples" id="examples">
+  <div class="chip" onclick="useChip(this)">📈 Jaký byl nejlepší měsíc?</div>
+  <div class="chip" onclick="useChip(this)">🗺️ Porovnej výkon regionů</div>
+  <div class="chip" onclick="useChip(this)">⚠️ Kde jsou anomálie?</div>
+  <div class="chip" onclick="useChip(this)">🧮 Navrhni DAX míru pro marži</div>
+  <div class="chip" onclick="useChip(this)">📊 Jaký typ grafu doporučuješ?</div>
+</div>
+
+<!-- Vstupní pole -->
+<div class="input-row">
+  <textarea id="userInput"
+    placeholder="Napiš dotaz k datům..."
+    onkeydown="handleKey(event)"
+    oninput="autoResize(this)"></textarea>
+  <button class="send-btn" id="sendBtn" onclick="sendMsg()" title="Odeslat (Enter)">➤</button>
+</div>
+
+<div class="footer">Funguje pouze pro interní účely · Neposílej citlivá osobní data</div>
+
+<script>
+  let history = [];
+  let isLoading = false;
+  let ctxOpen = false;
+
+  /* ─── Kontext ─── */
+  function toggleCtx() {
+    ctxOpen = !ctxOpen;
+    document.getElementById('ctxArea').style.display = ctxOpen ? 'block' : 'none';
+    document.getElementById('ctxToggle').classList.toggle('open', ctxOpen);
+  }
+
+  /* ─── Resize textarea ─── */
+  function autoResize(el) {
+    el.style.height = '38px';
+    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+    el.style.overflowY = el.scrollHeight > 120 ? 'auto' : 'hidden';
+  }
+
+  /* ─── Enter = odeslat, Shift+Enter = nový řádek ─── */
+  function handleKey(e) {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendMsg();
+    }
+  }
+
+  /* ─── Použij příklad ─── */
+  function useChip(el) {
+    const txt = el.textContent.replace(/^[^\w]+/, '').trim();
+    document.getElementById('userInput').value = txt;
+    document.getElementById('examples').style.display = 'none';
+    sendMsg();
+  }
+
+  /* ─── Přidej zprávu do chatu ─── */
+  function addMsg(role, text, typing) {
+    const msgs = document.getElementById('messages');
+    const div = document.createElement('div');
+    div.className = 'msg ' + role;
+    const label = role === 'user' ? 'Ty' : 'AI';
+    const cls   = role === 'user' ? 'user' : 'ai';
+
+    if (typing) {
+      div.id = 'typing';
+      div.innerHTML = `<div class="avatar ai">AI</div>
+        <div class="bubble ai"><div class="dots">
+          <span></span><span></span><span></span>
+        </div></div>`;
+    } else {
+      const bubbleCls = role === 'user' ? 'user' : (text.startsWith('⚠️') ? 'ai error' : 'ai');
+      div.innerHTML = `<div class="avatar ${cls}">${label}</div>
+        <div class="bubble ${bubbleCls}">${escHtml(text)}</div>`;
+    }
+
+    msgs.appendChild(div);
+    msgs.scrollTop = msgs.scrollHeight;
+    return div;
+  }
+
+  function escHtml(t) {
+    return t
+      .replace(/&/g,'&amp;')
+      .replace(/</g,'&lt;')
+      .replace(/>/g,'&gt;');
+  }
+
+  /* ─── Pošli zprávu ─── */
+  async function sendMsg() {
+    if (isLoading) return;
+
+    const input = document.getElementById('userInput');
+    const text  = input.value.trim();
+    if (!text) return;
+
+    /* Zkontroluj API klíč */
+    if (API_KEY === "ZDE_VLOZ_SVUJ_ANTHROPIC_API_KLIC" || API_KEY === "") {
+      addMsg('ai', '⚠️ API klíč není nastaven!\n\nOtevři soubor claude-chat-powerbi.html v textovém editoru a nahraď text ZDE_VLOZ_SVUJ_ANTHROPIC_API_KLIC svým skutečným klíčem z console.anthropic.com');
+      return;
+    }
+
+    document.getElementById('examples').style.display = 'none';
+    input.value = '';
+    input.style.height = '38px';
+    isLoading = true;
+    document.getElementById('sendBtn').disabled = true;
+
+    addMsg('user', text);
+    history.push({ role: 'user', content: text });
+
+    const ctx = document.getElementById('ctxInput').value.trim();
+    const systemPrompt = `Jsi datový analytik asistent zabudovaný v Power BI dashboardu. Odpovídáš stručně, přesně a vždy v češtině. Pomáháš interpretovat data, navrhovat DAX výpočty, identifikovat trendy a anomálie v reportech. Pokud navrhuješ DAX kód, zapiš ho přehledně.${ctx ? '\n\nKontext reportu:\n' + ctx : '\n\nKontext reportu nebyl zadán – odpovídej obecně na základě dotazu.'}`;
+
+    addMsg('ai', '', true);
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': API_KEY,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-allow-browser': 'true'
+        },
+        body: JSON.stringify({
+          model: 'claude-haiku-4-5-20251001',
+          max_tokens: 1000,
+          system: systemPrompt,
+          messages: history
+        })
+      });
+
+      const data = await res.json();
+
+      if (data.error) {
+        throw new Error(data.error.message || 'Chyba API');
+      }
+
+      const reply = data.content?.[0]?.text || 'Omlouvám se, nepodařilo se získat odpověď.';
+      history.push({ role: 'assistant', content: reply });
+      document.getElementById('typing')?.remove();
+      addMsg('ai', reply);
+
+    } catch (err) {
+      document.getElementById('typing')?.remove();
+      addMsg('ai', '⚠️ Chyba: ' + err.message + '\n\nZkontroluj:\n• Správnost API klíče\n• Internetové připojení\n• Zůstatek na Anthropic účtu');
+    }
+
+    isLoading = false;
+    document.getElementById('sendBtn').disabled = false;
+    document.getElementById('userInput').focus();
+  }
+</script>
+
+</body>
+</html>
